@@ -33,7 +33,7 @@ Compiled on Mac OS High Sierra 10.13.16 with `gcc sqlite3.c -o view view.c`
 
 Compiled on Odin with `gcc sqlite3.c -o view view.c -lpthread -ldl`
 
-Run with `./view <table to view>`
+Run with `./view <table to view>` Note, if it's a particular unwieldy tuple space, we can pipe it to less with `./view <table to view> | less`
 
 ### To do
 
