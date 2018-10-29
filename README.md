@@ -14,6 +14,15 @@ Compiled on Odin with `gcc sqlite3.c -o insert example.c -lpthread -ldl`
 
 You can then run it with `./insert`
 
+##### `hash.c`
+This file is an example on how to hash a string to MD5. Part of our process will be to hash strings we generate into MD5 to compare to hashes we want to crack
+
+Compiled on Mac OS High Sierra 10.13.16 with `gcc -o hash hash.c`
+
+Compiled on Odin with `gcc -o hash hash.c -lcrypto -lssl`
+
+Run with `./hash <string to hash>`
+
 ##### `sqlite3.c` & `sqlite3.h`
 These files are used together to compile the SQLite3 drivers for `example.c`
 
