@@ -13,6 +13,10 @@
 #  include <openssl/md5.h>
 #endif
 
+#define RED   "\x1B[31m"
+#define BLU   "\x1B[34m"
+#define RESET "\x1B[0m"
+
 // This function takes "string", it's length
 // and then returns the md5 hash
 // Credit to: Todd https://stackoverflow.com/a/8389763
@@ -47,13 +51,13 @@ char *str2md5(const char *str, int length) {
 int main(int argc, char **argv) {
 	// We must call the program with a string to hash i.e. `./hash example`
 	if(argc != 2) {
-		printf("Please supply a string to hash\n");
+		printf(RED "Please supply a string to hash\n" RESET);
 		return 1;
 	}
 	// Call the hashing function on the string we want to hash
 	char *output = str2md5(argv[1], strlen(argv[1]));
 	// Print the result
-	printf("%s\n", output);
+	printf(BLU "%s\n" RESET, output);
 	free(output);
 	return 0;
 }
