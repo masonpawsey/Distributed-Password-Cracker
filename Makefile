@@ -1,7 +1,7 @@
-all: example read
+all: jobs worker
 
-example: example.c sqlite3.c
-	gcc sqlite3.c -o insert example.c -lpthread -ldl
+jobs: example.c sqlite3.c
+	gcc sqlite3.c -o jobs job_spawner.c -lpthread -ldl
 
-read: red5.c sqlite3.c
-	gcc sqlite3.c -o read red5.c -lpthread -ldl
+worker: worker.c sqlite3.c
+	gcc sqlite3.c -o worker worker.c -lpthread -ldl
