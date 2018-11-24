@@ -26,6 +26,15 @@ Run with `./hash <string to hash>`
 ##### `sqlite3.c` & `sqlite3.h`
 These files are used together to compile the SQLite3 drivers for `example.c`
 
+##### `view.c`
+This file is a helper file to view the tuple spaces.
+
+Compiled on Mac OS High Sierra 10.13.16 with `gcc sqlite3.c -o view view.c`
+
+Compiled on Odin with `gcc sqlite3.c -o view view.c -lpthread -ldl`
+
+Run with `./view <table to view>` Note, if it's a particular unwieldy tuple space, we can pipe it to less with `./view <table to view> | less`
+
 ### To do
 
 [x] Create an example to `INSERT` into a tuple space
