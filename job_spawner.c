@@ -23,14 +23,8 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	return 0;
 }
 
-void sanitizer(char *unsafe_array, int prefix, int base, int rc)
+void sanitizer(char *hash, char *unsafe_array, int prefix, int base, int rc)
 {
-    //rc = sqlite3_open("database.db", &db);
-    //if (rc) {
-    //    fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-    //    sqlite3_close(db);
-    //}
-    //size_t length = sizeof(unsafe_array)/sizeof(unsafe_array[0]);
     char safe[2*prefix+1];
     for (int i = 0; i < 2*prefix + 1; i++) {
         safe[i] = '\0';
@@ -38,8 +32,6 @@ void sanitizer(char *unsafe_array, int prefix, int base, int rc)
     int j = 0;
     for (int i = 0; i < prefix; i++) {
         if (unsafe_array[i] == 39) {
-            //printf("Unsafe array: ");
-            //printf("%c", unsafe_array[i]);
             safe[j] = 39;
             safe[j+1] = 39;
             j+=2;
@@ -48,12 +40,7 @@ void sanitizer(char *unsafe_array, int prefix, int base, int rc)
             j++;
         }
     }
-    //printf("\n Safe array: ");
-    //for (int k = 0; k < prefix + 2; k++) {
-    //    printf("%c", safe[k]);
-    //}
-    //printf("\n");
-    snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO JOBS (task, tasksize, added, ID) VALUES ('%s', %d, CURRENT_TIMESTAMP, NULL)", safe, base);
+    snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO JOBS (hash, task, tasksize, added, ID) VALUES ('%s', '%s', %d, CURRENT_TIMESTAMP, NULL)", hash, safe, base);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
     if( rc!=SQLITE_OK ){
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
@@ -63,13 +50,13 @@ void sanitizer(char *unsafe_array, int prefix, int base, int rc)
 }
 
 
-void breaker(char *first, int index, int prefix, int base, int rc)
+void breaker(char *hash, char *first, int index, int prefix, int base, int rc)
 {
 
     while (first[index] <= 126) {
         if (index + 1 < prefix) {
             first[index + 1] = 32;
-            breaker(first, index + 1, prefix, base, rc);
+            breaker(hash, first, index + 1, prefix, base, rc);
         }
         int flag = 0;
         for (int i = 0; i < prefix; i++) {
@@ -78,18 +65,7 @@ void breaker(char *first, int index, int prefix, int base, int rc)
             }
         }
         if (flag == 0) {
-            sanitizer(first, prefix, base, rc);
-            //printf("Find all 4 character passwords starting with ");
-            //for (int i = 0; i < prefix; i++) {
-                //printf("%c", first[i]);
-                //snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO JOBS (task, tasksize, added, ID) VALUES (\"%s\", %d, CURRENT_TIMESTAMP, NULL)", first, base);
-                //snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO JOBS (task, tasksize, added, ID) VALUES ('%s', %d, CURRENT_TIMESTAMP, NULL)", first, base);
-                //rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
-                //if( rc!=SQLITE_OK ){
-		        //    fprintf(stderr, "SQL error: %s\n", zErrMsg);
-		        //    sqlite3_free(zErrMsg);
-	            //}
-            //}
+            sanitizer(hash, first, prefix, base, rc);
         }
         first[index]++;
     }
@@ -100,32 +76,56 @@ void breaker(char *first, int index, int prefix, int base, int rc)
 int main(int argc, char *argv[])
 {
     if (argc != 3 || atoi(argv[1]) < atoi(argv[2]))
-    usage();
+        usage();
+
+    char hash[34];
+    printf("Please enter a hash: ");
+    fgets(hash, 33, stdin);
+    hash[34] = '\0';
+    printf("YOU HAVE ENTERED: \n");
+    for (int i = 0; i < sizeof(hash); i++) {
+        printf("%c", hash[i]);
+    }
+    printf("\n");
 
     rc = sqlite3_open("database.db", &db);
     if (rc) {
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
     }
-
-
     int characters = atoi(argv[1]);
     int base = atoi(argv[2]);
-    int prefix = characters - base;
+    int passwords = 1;
 
-    char first[prefix + 1];
-    char second[base];
-    char together[characters];
-
-    for (int i = 0; i < prefix; i++) {
-        first[i] = 32;
+    while (passwords <= base) {
+        snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO JOBS (hash, tasksize, added, ID) VALUES ('%s', %d, CURRENT_TIMESTAMP, NULL)", hash, passwords);
+        rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+        if( rc!=SQLITE_OK ){
+            fprintf(stderr, "SQL error: %s\n", zErrMsg);
+            sqlite3_free(zErrMsg);
+        }
+        passwords++;
     }
-    first[prefix] = '\0';
-    for (int i = 0; i < base; i++) {
-        second[i] = 'j';
+    while (characters >= passwords) {
+        int prefix = passwords - base;
+        char first[prefix + 1];
+        for (int i = 0; i < prefix; i++) {
+            first[i] = 32;
+        }
+        first[prefix] = '\0';
+        //for (int i = 0; i < base; i++) {
+        //    second[i] = 'j';
+        //}
+        breaker(hash, first, 0, prefix, base, rc);
+        passwords++;
     }
 
-    breaker(first, 0, prefix, base, rc);
+    //if (characters > base)
+
+    //char second[base];
+    //char together[characters];
+
+
 
     sqlite3_close(db);
     return 0;
