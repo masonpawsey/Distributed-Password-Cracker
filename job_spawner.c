@@ -93,6 +93,15 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
     }
+
+    // Clear the database
+    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs; DELETE from progress;");
+    rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+    if( rc!=SQLITE_OK ){
+        fprintf(stderr, "SQL error: %s\n", zErrMsg);
+        sqlite3_free(zErrMsg);
+    }
+
     int characters = atoi(argv[1]);
     int base = atoi(argv[2]);
     int passwords = 1;
