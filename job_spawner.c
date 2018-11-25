@@ -78,10 +78,15 @@ int main(int argc, char *argv[])
     if (argc != 3 || atoi(argv[1]) < atoi(argv[2]))
         usage();
 
-    char hash[33];
+    char hash[34];
     printf("Please enter a hash: ");
-    fgets(hash, 32, stdin);
-    hash[33] = '\0';
+    fgets(hash, 33, stdin);
+    hash[34] = '\0';
+    printf("YOU HAVE ENTERED: \n");
+    for (int i = 0; i < sizeof(hash); i++) {
+        printf("%c", hash[i]);
+    }
+    printf("\n");
 
     rc = sqlite3_open("database.db", &db);
     if (rc) {
