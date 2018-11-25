@@ -21,7 +21,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 
 	while(pass[index] <= 126) {
-		if (index + 1 < passLength - 1) {
+		if (index + 1 < passLength - 2) {
 			pass[index + 1] = 32;
 			breaker(hash, task, size, pass, passLength, index + 1, prefix);
 		}
@@ -44,6 +44,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			//for (int i = 0; i < passLength; i++) {
 			//	printf("%c", together[i]);
 			//}
+			printf("\n");
 			char md5string[33];
 			for (int i = 0; i < 16; i++) {
 				sprintf(&md5string[i*2], "%02x", (unsigned int)thisHash[i]);
