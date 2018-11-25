@@ -9,16 +9,14 @@ char *zErrMsg = 0;
 int rc;
 /*returns the result of an sql query and prints to terminal */
 
+char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
+int myID;
+
 void breaker(char *hash, char *task, char *size, char *pass, int passLength, int index, int prefix)
 {
-	//printf("\n**IN BREAKER** \n%s, %lu, %d", hash, sizeof(task)/sizeof(task[0]), atoi(size));
-	//if (strcmp(task, "NULL")) {
-	//	printf("\nNull here");
-	//}
-	//printf("\n\nTASK: ");
-	//for (int i = 0; i < sizeof(task)/sizeof(task[0]); i++) {
-	//	printf("%c", task[i]);
-	//}
+	/*
+	"together" stores our prefix + generated portion in one array
+	*/
 	char together[passLength];
 
 
@@ -50,15 +48,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			for (int i = 0; i < 16; i++) {
 				sprintf(&md5string[i*2], "%02x", (unsigned int)thisHash[i]);
 			}
-			//printf(" Hash: ");
-			//for (int i = 0; i < sizeof(md5string); i++) {
-				//printf("%02x", thisHash[i]);
-			//	printf("%c", md5string[i]);
-			//}
-			//printf("\n");
-			/*
-			This still doesn't find the correct hash :[
-			*/
+
 			if (strncmp(md5string, hash, 32) == 0) {
 				printf("\n\n*HASH FOUND*\n\n");
 				for (int i = 0; i < passLength; i++) {
@@ -69,30 +59,11 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 		}
         pass[index]++;
 	}
-
-
-
-
-/*	printf("\n");
-	char together[128];
-	for (int i = 0; i < sizeof(together); i++) {
-		together[i] = '\0';
-	}
-	strcat(together, task);
-
-	char suffix[3] = {'a', 'a', '\0'};
-
-	strcat(together, suffix);
-	printf("\nTOGETHER IN BREAKER: ");
-	for (int i = 0; i < sizeof(together); i++) {
-		printf("%c", together[i]);
-	}
-	printf("\n");
-	*/
 }
+
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
-	int i, myID;
-    char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
+	int myID;
+    //char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 
 	for (int i = 0; i < sizeof(myTask); i++) {
 		myTask[i] = '\0';
@@ -128,21 +99,21 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
-	if(sqlite3_close(db)) {
-		printf("Database closed.\n");
-	}
+	//if(sqlite3_close(db)) {
+	//	printf("Database closed.\n");
+	//}
 	/*
 	"myTask" is where we store the prefix of this job.
 	i.e. if the job is "all 4 character passwords starting with 't', then
 	myTask = {'t', '\0'}"
-	*/
+
 	printf("\nHash: ");
 	for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
 		printf("%c", myHash[i]);
 	}
 	printf("\n");
 
-	/* the size of our prefix, in characters */
+	/* the size of our prefix, in characters
 	int prefix;
 	if (strcmp(myTask, "NULL") == 0) {
 		prefix = 0;
@@ -178,9 +149,6 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 int main() {
 	// Store the 'task' into this character array
 	char task[9];
-	// Store the password to crack into a buffer. Don't forget the trailing null, which is why
-	// we need a buffer of 9 bytes eventhough "password" is only 8
-	//snprintf(task, sizeof(task), "password");
 
 	// Allocate a c-string array that can store a SQL command
 	char sqlcommand[1024];
@@ -207,8 +175,37 @@ int main() {
 	if( rc!=SQLITE_OK ){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
-		sqlite3_close(db);
 	}
+	sqlite3_close(db);
+
+	printf("\nHash: ");
+	for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
+		printf("%c", myHash[i]);
+	}
+	printf("\n");
+
+	/* the size of our prefix, in characters */
+	int prefix;
+	if (strcmp(myTask, "NULL") == 0) {
+		prefix = 0;
+	} else {
+		prefix = strlen(myTask);
+		printf("\n\nTASK: ");
+		for (int i = 0; i < sizeof(myTask)/sizeof(myTask[0]); i++) {
+			printf("%c", myTask[i]);
+		}
+		printf("\n");
+	}
+
+	int passLength = prefix + atoi(myTaskSize);
+
+	char pass[passLength];
+	for (int i = 0; i < passLength; i++) {
+		pass[i] = 32;
+	}
+	int index = 0;
+	//for (int)
+	breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
 
 	// Close the connection to the database
 
