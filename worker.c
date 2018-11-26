@@ -21,7 +21,8 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 
 	while(pass[index] <= 126) {
-		if (index + 1 < passLength - 2) {
+		//printf("Index + 1: %d, passLength: %d", index + 1, passLength);
+		if (index + 1 < passLength - prefix) {
 			pass[index + 1] = 32;
 			breaker(hash, task, size, pass, passLength, index + 1, prefix);
 		}
@@ -187,6 +188,7 @@ int main() {
 
 	/* the size of our prefix, in characters */
 	int prefix;
+	//printf("strlen(mytask): %ld\n", strlen(myTask));
 	if (strcmp(myTask, "NULL") == 0) {
 		prefix = 0;
 	} else {
@@ -197,9 +199,9 @@ int main() {
 		}
 		printf("\n");
 	}
-
+	//printf("Prefix: %d", prefix);
 	int passLength = prefix + atoi(myTaskSize);
-
+	//printf("\nPasslength: %d\n", passLength);
 	char pass[passLength];
 	for (int i = 0; i < passLength; i++) {
 		pass[i] = 32;
