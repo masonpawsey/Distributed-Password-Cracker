@@ -11,7 +11,9 @@ int rc;
 /*returns the result of an sql query and prints to terminal */
 
 char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
-int myID;
+char sqlcommand[1024];
+int myID, flag = 1;
+static int callback(void *NotUsed, int argc, char **argv, char **azColName);
 
 void breaker(char *hash, char *task, char *size, char *pass, int passLength, int index, int prefix)
 {
@@ -22,7 +24,8 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 
 	while(pass[index] <= 126) {
-		if (index + 1 < passLength - 1) {
+		//printf("Index + 1: %d, passLength: %d", index + 1, passLength);
+		if (index + 1 < passLength - prefix) {
 			pass[index + 1] = 32;
 			breaker(hash, task, size, pass, passLength, index + 1, prefix);
 		}
@@ -45,6 +48,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			//for (int i = 0; i < passLength; i++) {
 			//	printf("%c", together[i]);
 			//}
+			//printf("\n");
 			char md5string[33];
 			for (int i = 0; i < 16; i++) {
 				sprintf(&md5string[i*2], "%02x", (unsigned int)thisHash[i]);
@@ -52,10 +56,12 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 			if (strncmp(md5string, hash, 32) == 0) {
 				printf("\n\n*HASH FOUND*\n\n");
+				flag = 0;
 				for (int i = 0; i < passLength; i++) {
 					printf("%c", together[i]);
 				}
-				break;
+				printf("\n");
+				exit(0);
 			}
 		}
         pass[index]++;
@@ -100,25 +106,76 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 		fprintf(stderr, "SQL error deleting: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
+
 	return 0;
 }
 
 int main() {
-	// Store the 'task' into this character array
-	char task[9];
+	while (flag == 1) {
+		// Store the 'task' into this character array
+		char task[9];
 
-	// Allocate a c-string array that can store a SQL command
-	char sqlcommand[1024];
-	// Generate the SQL command based on
-	//snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO jobs (task, tasksize, added)
-                                                    //VALUES ('password', 9, CURRENT_TIMESTAMP)");
-    /*This will find the task that was added the longest time ago. */
+		// Allocate a c-string array that can store a SQL command
+		//char sqlcommand[1024];
 
-    snprintf(sqlcommand, sizeof(sqlcommand), "SELECT * FROM jobs ORDER BY ID LIMIT 1;");
-	printf("Command executed: %s\n", sqlcommand);
+	    /*This will find the task that was added the longest time ago. */
 
-	// This opens the SQLite database, which is actually the file 'database.db'
-	// If it can't open the database, error out
+	    snprintf(sqlcommand, sizeof(sqlcommand), "SELECT * FROM jobs ORDER BY ID LIMIT 1;");
+		printf("Command executed: %s\n", sqlcommand);
+
+		/* This opens the SQLite database, which is actually the file 'database.db'
+		 If it can't open the database, error out */
+		rc = sqlite3_open("database.db", &db);
+		if( rc ){
+			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+			sqlite3_close(db);
+			return(1);
+		}
+
+		// Run the SQL command on the database. Calls "callback", which handles
+		// the return values from the DB
+		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+		if( rc!=SQLITE_OK ){
+			fprintf(stderr, "SQL error: %s\n", zErrMsg);
+			sqlite3_free(zErrMsg);
+		}
+
+		sqlite3_close(db);
+		printf("\nHash: ");
+		for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
+			printf("%c", myHash[i]);
+		}
+		printf("\n");
+
+		/* the size of our prefix, in characters */
+		int prefix;
+		//printf("strlen(mytask): %ld\n", strlen(myTask));
+		if (strcmp(myTask, "NULL") == 0) {
+			prefix = 0;
+			printf("\nTASK: All %d character passwords\n", atoi(myTaskSize));
+		} else {
+			prefix = strlen(myTask);
+			printf("\nTASK: All %d character passwords starting with: ", atoi(myTaskSize) + prefix);
+			for (int i = 0; i < sizeof(myTask)/sizeof(myTask[0]); i++) {
+				printf("%c", myTask[i]);
+			}
+			printf("\n");
+		}
+		//printf("Prefix: %d", prefix);
+		int passLength = prefix + atoi(myTaskSize);
+		//printf("\nPasslength: %d\n", passLength);
+		char pass[passLength];
+		for (int i = 0; i < passLength; i++) {
+			pass[i] = 32;
+		}
+		int index = 0;
+		//for (int)
+		breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
+
+		// Close the connection to the database
+	}
+	snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
+
 	rc = sqlite3_open("database.db", &db);
 	if( rc ){
 		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
@@ -133,39 +190,8 @@ int main() {
 		fprintf(stderr, "SQL error selecting: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
+
 	sqlite3_close(db);
-
-	printf("\nHash: ");
-	for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
-		printf("%c", myHash[i]);
-	}
-	printf("\n");
-
-	/* the size of our prefix, in characters */
-	int prefix;
-	if (strcmp(myTask, "NULL") == 0) {
-		prefix = 0;
-	} else {
-		prefix = strlen(myTask);
-		printf("\n\nTASK: ");
-		for (int i = 0; i < sizeof(myTask)/sizeof(myTask[0]); i++) {
-			printf("%c", myTask[i]);
-		}
-		printf("\n");
-	}
-
-	int passLength = prefix + atoi(myTaskSize);
-
-	char pass[passLength];
-	for (int i = 0; i < passLength; i++) {
-		pass[i] = 32;
-	}
-	int index = 0;
-	//for (int)
-	breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
-
-	// Close the connection to the database
-
 
 	return 0;
 }
