@@ -56,6 +56,22 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			if (strncmp(md5string, hash, 32) == 0) {
 				printf("\n\n*HASH FOUND*\n\n");
 				foundFlag = 1;
+				printf("foundFlag set, deleting jobs...\n");
+
+				rc = sqlite3_open("database.db", &db);
+				if( rc ){
+					fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+					sqlite3_close(db);
+					//return(1);
+				}
+				
+				snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
+				rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+				if( rc!=SQLITE_OK ){
+					fprintf(stderr, "SQL deleting error: %s\n", zErrMsg);
+					sqlite3_free(zErrMsg);
+				}
+
 				for (int i = 0; i < passLength; i++) {
 					printf("%c", together[i]);
 				}
@@ -181,29 +197,7 @@ int main() {
 		int index = 0;
 		//for (int)
 		breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
-
-		// Close the connection to the database
 	}
-	printf("foundFlag set, deleting jobs...\n");
-		snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
-
-		rc = sqlite3_open("database.db", &db);
-		if( rc ){
-			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-			sqlite3_close(db);
-			return(1);
-		}
-
-		do {
-		// Run the SQL command on the database. Calls "callback", which handles
-		// the return values from the DB
-		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
-		if( rc!=SQLITE_OK ){
-			fprintf(stderr, "SQL error: %s\n", zErrMsg);
-			sqlite3_free(zErrMsg);
-		}
-	} while (rc != SQLITE_OK);
-
-		sqlite3_close(db);
+	sqlite3_close(db);
 	return 0;
 }
