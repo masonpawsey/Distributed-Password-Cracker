@@ -7,6 +7,7 @@
 sqlite3 *db;
 char *zErrMsg = 0;
 int rc;
+
 /*returns the result of an sql query and prints to terminal */
 
 char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
@@ -85,7 +86,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
     snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('Red5', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", myHash, myTask, myTaskSize, myID);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		fprintf(stderr, "SQL error inserting: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -93,56 +94,12 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	Delete the job we took from the jobs table
 	*/
     snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d;", myID);
-    printf("sqlcommand: %s", sqlcommand);
+    //printf("sqlcommand: %s", sqlcommand);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		fprintf(stderr, "SQL error deleting: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
-	//if(sqlite3_close(db)) {
-	//	printf("Database closed.\n");
-	//}
-	/*
-	"myTask" is where we store the prefix of this job.
-	i.e. if the job is "all 4 character passwords starting with 't', then
-	myTask = {'t', '\0'}"
-
-	printf("\nHash: ");
-	for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
-		printf("%c", myHash[i]);
-	}
-	printf("\n");
-
-	/* the size of our prefix, in characters
-	int prefix;
-	if (strcmp(myTask, "NULL") == 0) {
-		prefix = 0;
-	} else {
-		prefix = strlen(myTask);
-		printf("\n\nTASK: ");
-		for (int i = 0; i < sizeof(myTask)/sizeof(myTask[0]); i++) {
-			printf("%c", myTask[i]);
-		}
-		printf("\n");
-	}
-
-	int passLength = prefix + atoi(myTaskSize);
-
-	char pass[passLength];
-	for (int i = 0; i < passLength; i++) {
-		pass[i] = 32;
-	}
-	int index = 0;
-	//for (int)
-	breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
-    /*
-    size_t len;
-	for(i=0; i<argc; i++){
-		sprintf(myTask + strlen(myTask), "%s = %s\n", azColName[i], argv[i] ? argv[i] : "NULL");
-	}
-    */
-    //printf("\n%s, %s, %s, %s\n", myHash, myTask, myTaskSize, myAdded);
-
 	return 0;
 }
 
@@ -173,7 +130,7 @@ int main() {
 	// the return values from the DB
 	rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error: %s\n", zErrMsg);
+		fprintf(stderr, "SQL error selecting: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 	sqlite3_close(db);
