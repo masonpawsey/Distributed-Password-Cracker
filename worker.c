@@ -7,12 +7,11 @@
 sqlite3 *db;
 char *zErrMsg = 0;
 int rc;
-
 /*returns the result of an sql query and prints to terminal */
 
 char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 char sqlcommand[1024];
-int myID, flag = 1;
+int myID, foundFlag;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName);
 
 void breaker(char *hash, char *task, char *size, char *pass, int passLength, int index, int prefix)
@@ -23,7 +22,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 	char together[passLength];
 
 
-	while(pass[index] <= 126) {
+	while(pass[index] <= 126 && foundFlag == 0) {
 		//printf("Index + 1: %d, passLength: %d", index + 1, passLength);
 		if (index + 1 < passLength - prefix) {
 			pass[index + 1] = 32;
@@ -56,12 +55,13 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 			if (strncmp(md5string, hash, 32) == 0) {
 				printf("\n\n*HASH FOUND*\n\n");
-				flag = 0;
+				foundFlag = 1;
 				for (int i = 0; i < passLength; i++) {
 					printf("%c", together[i]);
 				}
 				printf("\n");
-				exit(0);
+				break;
+				//exit(0);
 			}
 		}
         pass[index]++;
@@ -89,10 +89,12 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	/*
 	Insert which job this host will begin into the progress table
 	*/
+	printf("myHash:\n");
+
     snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('Red5', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", myHash, myTask, myTaskSize, myID);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error inserting: %s\n", zErrMsg);
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -100,10 +102,10 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	Delete the job we took from the jobs table
 	*/
     snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d;", myID);
-    //printf("sqlcommand: %s", sqlcommand);
+    printf("sqlcommand: %s", sqlcommand);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error deleting: %s\n", zErrMsg);
+		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
@@ -111,14 +113,16 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 int main() {
-	while (flag == 1) {
+	foundFlag = 0;
+	while (foundFlag == 0) {
 		// Store the 'task' into this character array
 		char task[9];
-
+		memset(myHash, '\0', sizeof(myHash));
 		// Allocate a c-string array that can store a SQL command
 		//char sqlcommand[1024];
 
 	    /*This will find the task that was added the longest time ago. */
+		printf("foundFlag: %d\n", foundFlag);
 
 	    snprintf(sqlcommand, sizeof(sqlcommand), "SELECT * FROM jobs ORDER BY ID LIMIT 1;");
 		printf("Command executed: %s\n", sqlcommand);
@@ -147,6 +151,12 @@ int main() {
 		}
 		printf("\n");
 
+		if (strlen(myHash) == 0) {
+			printf("Job table empty. Aborting...\n");
+			foundFlag = 1;
+			exit(0);
+		}
+
 		/* the size of our prefix, in characters */
 		int prefix;
 		//printf("strlen(mytask): %ld\n", strlen(myTask));
@@ -174,24 +184,26 @@ int main() {
 
 		// Close the connection to the database
 	}
-	snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
+	printf("foundFlag set, deleting jobs...\n");
+		snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
 
-	rc = sqlite3_open("database.db", &db);
-	if( rc ){
-		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		rc = sqlite3_open("database.db", &db);
+		if( rc ){
+			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+			sqlite3_close(db);
+			return(1);
+		}
+
+		do {
+		// Run the SQL command on the database. Calls "callback", which handles
+		// the return values from the DB
+		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+		if( rc!=SQLITE_OK ){
+			fprintf(stderr, "SQL error: %s\n", zErrMsg);
+			sqlite3_free(zErrMsg);
+		}
+	} while (rc != SQLITE_OK);
+
 		sqlite3_close(db);
-		return(1);
-	}
-
-	// Run the SQL command on the database. Calls "callback", which handles
-	// the return values from the DB
-	rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
-	if( rc!=SQLITE_OK ){
-		fprintf(stderr, "SQL error selecting: %s\n", zErrMsg);
-		sqlite3_free(zErrMsg);
-	}
-
-	sqlite3_close(db);
-
 	return 0;
 }
