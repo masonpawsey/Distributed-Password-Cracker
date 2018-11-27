@@ -56,22 +56,6 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			if (strncmp(md5string, hash, 32) == 0) {
 				printf("\n\n*HASH FOUND*\n\n");
 				foundFlag = 1;
-				printf("foundFlag set, deleting jobs...\n");
-
-				rc = sqlite3_open("database.db", &db);
-				if( rc ){
-					fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-					sqlite3_close(db);
-					//return(1);
-				}
-				
-				snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
-				rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
-				if( rc!=SQLITE_OK ){
-					fprintf(stderr, "SQL deleting error: %s\n", zErrMsg);
-					sqlite3_free(zErrMsg);
-				}
-
 				for (int i = 0; i < passLength; i++) {
 					printf("%c", together[i]);
 				}
@@ -88,12 +72,8 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	int myID;
     //char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 
-	for (int i = 0; i < sizeof(myTask); i++) {
-		myTask[i] = '\0';
-	}
-	for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
-		myHash[i] = '\0';
-	}
+	memset(myTask, '\0', sizeof(myTask));
+	memset(myHash, '\0', sizeof(myHash));
 
 	sprintf(myHash, "%s", argv[0] ? argv[0] : "NULL");
     sprintf(myTask, "%s", argv[1] ? argv[1] : "NULL");
@@ -117,7 +97,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	/*
 	Delete the job we took from the jobs table
 	*/
-    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d;", myID);
+    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d; COMMIT;", myID);
     printf("sqlcommand: %s", sqlcommand);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
@@ -130,17 +110,17 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 int main() {
 	foundFlag = 0;
+	myHash[0] = 'z';
 	while (foundFlag == 0) {
 		// Store the 'task' into this character array
 		char task[9];
-		memset(myHash, '\0', sizeof(myHash));
 		// Allocate a c-string array that can store a SQL command
 		//char sqlcommand[1024];
 
 	    /*This will find the task that was added the longest time ago. */
 		printf("foundFlag: %d\n", foundFlag);
 
-	    snprintf(sqlcommand, sizeof(sqlcommand), "SELECT * FROM jobs ORDER BY ID LIMIT 1;");
+	    snprintf(sqlcommand, sizeof(sqlcommand), "BEGIN EXCLUSIVE; SELECT * FROM jobs ORDER BY ID LIMIT 1;");
 		printf("Command executed: %s\n", sqlcommand);
 
 		/* This opens the SQLite database, which is actually the file 'database.db'
@@ -197,7 +177,29 @@ int main() {
 		int index = 0;
 		//for (int)
 		breaker(myHash, myTask, myTaskSize, pass, passLength, index, prefix);
+
+		// Close the connection to the database
 	}
-	sqlite3_close(db);
+	printf("foundFlag set, deleting jobs...\n");
+		snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
+
+		rc = sqlite3_open("database.db", &db);
+		if( rc ){
+			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+			sqlite3_close(db);
+			return(1);
+		}
+
+		do {
+		// Run the SQL command on the database. Calls "callback", which handles
+		// the return values from the DB
+		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+		if( rc!=SQLITE_OK ){
+			fprintf(stderr, "SQL error: %s\n", zErrMsg);
+			sqlite3_free(zErrMsg);
+		}
+	} while (rc != SQLITE_OK);
+
+		sqlite3_close(db);
 	return 0;
 }
