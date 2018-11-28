@@ -26,9 +26,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 void sanitizer(char *hash, char *unsafe_array, int prefix, int base, int rc)
 {
     char safe[2*prefix+1];
-    for (int i = 0; i < 2*prefix + 1; i++) {
-        safe[i] = '\0';
-    }
+    memset(safe, '\0', sizeof(safe));
     int j = 0;
     for (int i = 0; i < prefix; i++) {
         if (unsafe_array[i] == 39) {

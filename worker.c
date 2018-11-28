@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <openssl/md5.h>
 #include "sqlite3.h"
 
@@ -13,6 +14,25 @@ char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 char sqlcommand[1024];
 int myID, foundFlag;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName);
+
+char * sanitizer(char *unsafeArray)
+{
+	char *safe = malloc(sizeof(char) * 2*sizeof(unsafeArray));
+	//char safe[2*sizeof(unsafeArray)];
+	memset(safe, '\0', sizeof(safe));
+	int j = 0;
+    for (int i = 0; i < sizeof(unsafeArray); i++) {
+        if (unsafeArray[i] == 39) {
+            safe[j] = 39;
+            safe[j+1] = 39;
+            j+=2;
+        } else {
+            safe[j] = unsafeArray[i];
+            j++;
+        }
+    }
+	return safe;
+}
 
 void breaker(char *hash, char *task, char *size, char *pass, int passLength, int index, int prefix)
 {
@@ -54,13 +74,15 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 			}
 
 			if (strncmp(md5string, hash, 32) == 0) {
-				printf("\n\n*HASH FOUND*\n\n");
-				foundFlag = 1;
-				for (int i = 0; i < passLength; i++) {
-					printf("%c", together[i]);
+				if (foundFlag == 0) {
+					printf("\n\n*HASH FOUND*\n\n");
+					foundFlag = 1;
+					for (int i = 0; i < passLength; i++) {
+						printf("%c", together[i]);
+					}
+					printf("\n");
 				}
-				printf("\n");
-				break;
+				return;
 				//exit(0);
 			}
 		}
@@ -70,6 +92,7 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	int myID;
+	int pid = getpid();
     //char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 
 	memset(myTask, '\0', sizeof(myTask));
@@ -82,12 +105,20 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	myID = atoi(argv[4]);
 
     char sqlcommand[1024];
+
+	if (strlen(myHash) == 0) {
+		printf("Job table empty. Aborting...\n");
+		//foundFlag = 1;
+		return 0;
+	}
 	/*
 	Insert which job this host will begin into the progress table
 	*/
-	printf("myHash:\n");
+	//printf("myHash:\n");
 
-    snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('Red5', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", myHash, myTask, myTaskSize, myID);
+	char *safeTask = sanitizer(myTask);
+
+    snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('%d', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", pid, myHash, safeTask, myTaskSize, myID);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
@@ -112,6 +143,7 @@ int main() {
 	foundFlag = 0;
 	myHash[0] = 'z';
 	while (foundFlag == 0) {
+		memset(myTaskSize, '\0', sizeof(myTaskSize));
 		// Store the 'task' into this character array
 		char task[9];
 		// Allocate a c-string array that can store a SQL command
@@ -138,6 +170,7 @@ int main() {
 		if( rc!=SQLITE_OK ){
 			fprintf(stderr, "SQL error: %s\n", zErrMsg);
 			sqlite3_free(zErrMsg);
+			continue;
 		}
 
 		sqlite3_close(db);
@@ -145,17 +178,17 @@ int main() {
 		for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
 			printf("%c", myHash[i]);
 		}
-		printf("\n");
+		printf("\nTaskSize: %d\n", atoi(myTaskSize));
 
-		if (strlen(myHash) == 0) {
+		if (atoi(myTaskSize) == 0) {
 			printf("Job table empty. Aborting...\n");
-			foundFlag = 1;
+			//foundFlag = 1;
 			exit(0);
 		}
 
 		/* the size of our prefix, in characters */
 		int prefix;
-		//printf("strlen(mytask): %ld\n", strlen(myTask));
+		/*If the job doesn't have a prefix, do --*/
 		if (strcmp(myTask, "NULL") == 0) {
 			prefix = 0;
 			printf("\nTASK: All %d character passwords\n", atoi(myTaskSize));
@@ -167,9 +200,8 @@ int main() {
 			}
 			printf("\n");
 		}
-		//printf("Prefix: %d", prefix);
+
 		int passLength = prefix + atoi(myTaskSize);
-		//printf("\nPasslength: %d\n", passLength);
 		char pass[passLength];
 		for (int i = 0; i < passLength; i++) {
 			pass[i] = 32;
@@ -191,8 +223,6 @@ int main() {
 		}
 
 		do {
-		// Run the SQL command on the database. Calls "callback", which handles
-		// the return values from the DB
 		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 		if( rc!=SQLITE_OK ){
 			fprintf(stderr, "SQL error: %s\n", zErrMsg);
