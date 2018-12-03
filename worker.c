@@ -10,7 +10,7 @@ char *zErrMsg = 0;
 int rc;
 /*returns the result of an sql query and prints to terminal */
 
-char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
+char myHash[33], myTask[12], myTaskSize[128], myAdded[128], clearPass[100];
 char sqlcommand[1024];
 int myID, foundFlag;
 static int callback(void *NotUsed, int argc, char **argv, char **azColName);
@@ -81,6 +81,11 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 						printf("%c", together[i]);
 					}
 					printf("\n");
+					if (sizeof(together) < sizeof(clearPass)) {
+						snprintf(clearPass, passLength + 1, "%s", together);
+					} else {
+						printf("ERROR: password length exceeds storage\n");
+					}
 				}
 				return;
 				//exit(0);
@@ -129,7 +134,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	Delete the job we took from the jobs table
 	*/
     snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d; COMMIT;", myID);
-    printf("sqlcommand: %s", sqlcommand);
+    //printf("sqlcommand: %s", sqlcommand);
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
@@ -140,6 +145,7 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 int main() {
+	memset(clearPass, '\0', sizeof(clearPass));
 	foundFlag = 0;
 	myHash[0] = 'z';
 	while (foundFlag == 0) {
@@ -150,10 +156,10 @@ int main() {
 		//char sqlcommand[1024];
 
 	    /*This will find the task that was added the longest time ago. */
-		printf("foundFlag: %d\n", foundFlag);
+		//printf("foundFlag: %d\n", foundFlag);
 
 	    snprintf(sqlcommand, sizeof(sqlcommand), "BEGIN EXCLUSIVE; SELECT * FROM jobs ORDER BY ID LIMIT 1;");
-		printf("Command executed: %s\n", sqlcommand);
+		//printf("Command executed: %s\n", sqlcommand);
 
 		/* This opens the SQLite database, which is actually the file 'database.db'
 		 If it can't open the database, error out */
@@ -174,11 +180,11 @@ int main() {
 		}
 
 		sqlite3_close(db);
-		printf("\nHash: ");
-		for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
-			printf("%c", myHash[i]);
-		}
-		printf("\nTaskSize: %d\n", atoi(myTaskSize));
+		//printf("\nHash: ");
+		//for (int i = 0; i < sizeof(myHash)/sizeof(myHash[0]); i++) {
+		//	printf("%c", myHash[i]);
+		//}
+		//printf("\nTaskSize: %d\n", atoi(myTaskSize));
 
 		if (atoi(myTaskSize) == 0) {
 			printf("Job table empty. Aborting...\n");
@@ -198,7 +204,7 @@ int main() {
 			for (int i = 0; i < sizeof(myTask)/sizeof(myTask[0]); i++) {
 				printf("%c", myTask[i]);
 			}
-			printf("\n");
+			//printf("\n");
 		}
 
 		int passLength = prefix + atoi(myTaskSize);
@@ -212,17 +218,32 @@ int main() {
 
 		// Close the connection to the database
 	}
-	printf("foundFlag set, deleting jobs...\n");
-		snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
-
-		rc = sqlite3_open("database.db", &db);
-		if( rc ){
-			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
-			sqlite3_close(db);
-			return(1);
+	rc = sqlite3_open("database.db", &db);
+	if( rc ){
+		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return(1);
+	}
+	printf("Updating progress table...\n");
+	snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('%d', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", getpid(), myHash, clearPass, "0", -1);
+	do {
+		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+		if( rc!=SQLITE_OK ){
+			fprintf(stderr, "SQL error: %s\n", zErrMsg);
+			sqlite3_free(zErrMsg);
 		}
+	} while (rc != SQLITE_OK);
 
-		do {
+	printf("foundFlag set, deleting jobs...\n");
+	snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs;");
+
+	if( rc ){
+		fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+		sqlite3_close(db);
+		return(1);
+	}
+
+	do {
 		rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 		if( rc!=SQLITE_OK ){
 			fprintf(stderr, "SQL error: %s\n", zErrMsg);

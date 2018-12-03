@@ -80,10 +80,10 @@ int main(int argc, char *argv[])
     printf("Please enter a hash: ");
     fgets(hash, 33, stdin);
     hash[34] = '\0';
-    printf("YOU HAVE ENTERED: \n");
-    for (int i = 0; i < sizeof(hash); i++) {
-        printf("%c", hash[i]);
-    }
+    printf("Creating jobs...");
+    //for (int i = 0; i < sizeof(hash); i++) {
+    //    printf("%c", hash[i]);
+    //}
     printf("\n");
 
     rc = sqlite3_open("database.db", &db);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     }
 
     // Clear the database
-    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs; DELETE from progress;");
+    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE from jobs; DELETE from progress; UPDATE sqlite_sequence SET seq=0 WHERE NAME='jobs';");
     rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
     if( rc!=SQLITE_OK ){
         fprintf(stderr, "SQL error: %s\n", zErrMsg);
@@ -127,12 +127,7 @@ int main(int argc, char *argv[])
         passwords++;
     }
 
-    //if (characters > base)
-
-    //char second[base];
-    //char together[characters];
-
-
+    printf("Job table ready.\n");
 
     sqlite3_close(db);
     return 0;
