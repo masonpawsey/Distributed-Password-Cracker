@@ -21,24 +21,24 @@ char * sanitizer(char *unsafeArray)
 	//char safe[2*sizeof(unsafeArray)];
 	memset(safe, '\0', sizeof(safe));
 	int j = 0;
-    for (int i = 0; i < sizeof(unsafeArray); i++) {
-        if (unsafeArray[i] == 39) {
-            safe[j] = 39;
-            safe[j+1] = 39;
-            j+=2;
-        } else {
-            safe[j] = unsafeArray[i];
-            j++;
-        }
-    }
+	for (int i = 0; i < sizeof(unsafeArray); i++) {
+		if (unsafeArray[i] == 39) {
+			safe[j] = 39;
+			safe[j+1] = 39;
+			j+=2;
+		} else {
+			safe[j] = unsafeArray[i];
+			j++;
+		}
+	}
 	return safe;
 }
 
 void breaker(char *hash, char *task, char *size, char *pass, int passLength, int index, int prefix)
 {
 	/*
-	"together" stores our prefix + generated portion in one array
-	*/
+	   "together" stores our prefix + generated portion in one array
+	   */
 	char together[passLength];
 
 
@@ -50,10 +50,10 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 		}
 		int flag = 0;
 		for (int i = 0; i < passLength; i++) {
-            if (pass[i] > 126) {
-                flag = 1;
-            }
-        }
+			if (pass[i] > 126) {
+				flag = 1;
+			}
+		}
 		if (flag == 0) {
 			memset(together, '\0', sizeof(together));
 			if (prefix > 0) {
@@ -91,25 +91,25 @@ void breaker(char *hash, char *task, char *size, char *pass, int passLength, int
 				//exit(0);
 			}
 		}
-        pass[index]++;
+		pass[index]++;
 	}
 }
 
 static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	int myID;
 	int pid = getpid();
-    //char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
+	//char myHash[33], myTask[12], myTaskSize[128], myAdded[128];
 
 	memset(myTask, '\0', sizeof(myTask));
 	memset(myHash, '\0', sizeof(myHash));
 
 	sprintf(myHash, "%s", argv[0] ? argv[0] : "NULL");
-    sprintf(myTask, "%s", argv[1] ? argv[1] : "NULL");
-    sprintf(myTaskSize, "%s", argv[2] ? argv[2] : "NULL");
-    sprintf(myAdded, "%s", argv[3] ? argv[3] : "NULL");
+	sprintf(myTask, "%s", argv[1] ? argv[1] : "NULL");
+	sprintf(myTaskSize, "%s", argv[2] ? argv[2] : "NULL");
+	sprintf(myAdded, "%s", argv[3] ? argv[3] : "NULL");
 	myID = atoi(argv[4]);
 
-    char sqlcommand[1024];
+	char sqlcommand[1024];
 
 	if (strlen(myHash) == 0) {
 		printf("Job table empty. Aborting...\n");
@@ -117,25 +117,25 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 		return 0;
 	}
 	/*
-	Insert which job this host will begin into the progress table
-	*/
+	   Insert which job this host will begin into the progress table
+	   */
 	//printf("myHash:\n");
 
 	char *safeTask = sanitizer(myTask);
 
-    snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('%d', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", pid, myHash, safeTask, myTaskSize, myID);
-    rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+	snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('%d', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", pid, myHash, safeTask, myTaskSize, myID);
+	rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
 	}
 
 	/*
-	Delete the job we took from the jobs table
-	*/
-    snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d; COMMIT;", myID);
-    //printf("sqlcommand: %s", sqlcommand);
-    rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+	   Delete the job we took from the jobs table
+	   */
+	snprintf(sqlcommand, sizeof(sqlcommand), "DELETE FROM jobs WHERE ID = %d; COMMIT;", myID);
+	//printf("sqlcommand: %s", sqlcommand);
+	rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
 	if( rc!=SQLITE_OK ){
 		fprintf(stderr, "SQL error: %s\n", zErrMsg);
 		sqlite3_free(zErrMsg);
@@ -155,14 +155,14 @@ int main() {
 		// Allocate a c-string array that can store a SQL command
 		//char sqlcommand[1024];
 
-	    /*This will find the task that was added the longest time ago. */
+		/*This will find the task that was added the longest time ago. */
 		//printf("foundFlag: %d\n", foundFlag);
 
-	    snprintf(sqlcommand, sizeof(sqlcommand), "BEGIN EXCLUSIVE; SELECT * FROM jobs ORDER BY ID LIMIT 1;");
+		snprintf(sqlcommand, sizeof(sqlcommand), "BEGIN EXCLUSIVE; SELECT * FROM jobs ORDER BY ID LIMIT 1;");
 		//printf("Command executed: %s\n", sqlcommand);
 
 		/* This opens the SQLite database, which is actually the file 'database.db'
-		 If it can't open the database, error out */
+		   If it can't open the database, error out */
 		rc = sqlite3_open("database.db", &db);
 		if( rc ){
 			fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
@@ -188,9 +188,29 @@ int main() {
 
 		if (atoi(myTaskSize) == 0) {
 			printf("Job table empty. Aborting...\n");
+
+			rc = sqlite3_open("database.db", &db);
+			if( rc ){
+				fprintf(stderr, "Can't open database: %s\n", sqlite3_errmsg(db));
+				sqlite3_close(db);
+				return(1);
+			}
+
+			printf("Updating progress table...\n");
+			snprintf(sqlcommand, sizeof(sqlcommand), "INSERT INTO progress (host, hash, task, size, ID, time) VALUES ('%d', '%s', '%s', '%s', %d, CURRENT_TIMESTAMP)", getpid(), myHash, clearPass, "0", -1);
+			do {
+				rc = sqlite3_exec(db, sqlcommand, callback, 0, &zErrMsg);
+				if( rc!=SQLITE_OK ){
+					fprintf(stderr, "SQL error: %s\n", zErrMsg);
+					sqlite3_free(zErrMsg);
+				}
+			} while (rc != SQLITE_OK);
+
+
 			//foundFlag = 1;
 			exit(0);
 		}
+
 
 		/* the size of our prefix, in characters */
 		int prefix;
@@ -251,6 +271,6 @@ int main() {
 		}
 	} while (rc != SQLITE_OK);
 
-		sqlite3_close(db);
+	sqlite3_close(db);
 	return 0;
 }
