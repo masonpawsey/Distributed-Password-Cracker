@@ -24,10 +24,12 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 	if (atoi(id) < 1) {
 		if (strcmp(task, "") == 0) {
 			printf("*PASSWORD NOT FOUND*\n");
+            printf("Time: %s\n", dtime);
 		}
 		else{
 			printf("*PASSWORD FOUND*\n%s\n%s\n", hash, task);
-		}
+            printf("Time: %s\n", dtime);
+        }
 		exit(0);
 	}
 	if (atoi(id) > lastID) {
