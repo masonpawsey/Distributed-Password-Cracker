@@ -35,16 +35,6 @@ Compiled on Odin with `gcc sqlite3.c -o view view.c -lpthread -ldl`
 
 Run with `./view <table to view>` Note, if it's a particular unwieldy tuple space, we can pipe it to less with `./view <table to view> | less`
 
-### To do
-
-[x] Create an example to `INSERT` into a tuple space
-
-[ ] Flesh out example to include `READ` and `DELETE`
-
-[ ] Integrate password cracking ablity
-
-[ ] Distribute the process
-
 ##### Helpful Links
 https://www.sqlite.org/cintro.html
 
